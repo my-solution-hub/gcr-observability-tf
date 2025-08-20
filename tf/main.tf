@@ -24,6 +24,66 @@ provider "aws" {
   }
 }
 
+# IAM Role for OpenTelemetry Collector
+resource "aws_iam_role" "otel_collector_role" {
+  name = "${var.project_name}-${var.environment}-otel-collector-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_iam_role_policy" "otel_collector_policy" {
+  name = "${var.project_name}-${var.environment}-otel-collector-policy"
+  role = aws_iam_role.otel_collector_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeTags",
+          "logs:PutLogEvents",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups",
+          "xray:PutTraceSegments",
+          "xray:PutTelemetryRecords"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "otel_collector_profile" {
+  name = "${var.project_name}-${var.environment}-otel-collector-profile"
+  role = aws_iam_role.otel_collector_role.name
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
 # VPC
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
@@ -149,6 +209,46 @@ resource "aws_security_group" "redis" {
   }
 }
 
+resource "aws_security_group" "otel_collector" {
+  name_prefix = "${var.project_name}-${var.environment}-otel"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port       = 4317
+    to_port         = 4317
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web.id]
+    description     = "OTLP gRPC receiver"
+  }
+
+  ingress {
+    from_port       = 4318
+    to_port         = 4318
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web.id]
+    description     = "OTLP HTTP receiver"
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
 # EC2 Instances - 2 Java Spring Boot (hello) and 2 Python Flask (world)
 resource "aws_instance" "hello" {
   count                  = 2
@@ -196,6 +296,27 @@ resource "aws_instance" "world" {
   }
 
   depends_on = [aws_rds_cluster.main]
+}
+
+# OpenTelemetry Collector EC2 Instance
+resource "aws_instance" "otel_collector" {
+  ami                    = var.ami_id
+  instance_type          = var.otel_instance_type
+  subnet_id              = module.vpc.private_subnets[0]
+  vpc_security_group_ids = [aws_security_group.otel_collector.id]
+  iam_instance_profile   = aws_iam_instance_profile.otel_collector_profile.name
+
+  user_data = base64encode(templatefile("${path.module}/user_data_otel.sh", {
+    instance_name = "${var.project_name}-otel-collector"
+    aws_region = var.aws_region
+  }))
+
+  tags = {
+    Name        = "${var.project_name}-otel-collector"
+    Environment = var.environment
+    Project     = var.project_name
+    AppType     = "otel-collector"
+  }
 }
 
 # Application Load Balancers

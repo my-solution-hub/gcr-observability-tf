@@ -62,3 +62,21 @@ output "redis_reader_endpoint" {
   description = "Redis reader endpoint"
   value       = aws_elasticache_replication_group.main.reader_endpoint_address
 }
+
+output "otel_collector_instance_id" {
+  description = "OpenTelemetry Collector instance ID"
+  value       = aws_instance.otel_collector.id
+}
+
+output "otel_collector_private_ip" {
+  description = "OpenTelemetry Collector private IP"
+  value       = aws_instance.otel_collector.private_ip
+}
+
+output "otel_collector_endpoints" {
+  description = "OpenTelemetry Collector endpoints"
+  value = {
+    grpc = "http://${aws_instance.otel_collector.private_ip}:4317"
+    http = "http://${aws_instance.otel_collector.private_ip}:4318"
+  }
+}

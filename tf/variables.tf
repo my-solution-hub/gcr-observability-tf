@@ -56,3 +56,9 @@ variable "redis_node_type" {
   type        = string
   default     = "cache.t4g.micro"
 }
+
+variable "otel_instance_type" {
+  description = "OpenTelemetry Collector instance type"
+  type        = string
+  default     = "t3.small"
+}
