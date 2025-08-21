@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-service
+  namespace: default
+  labels:
+    app: hello-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hello-service
+  template:
+    metadata:
+      labels:
+        app: hello-service
+    spec:
+      containers:
+      - name: hello-service
+        image: HELLO_ECR_URL:latest
+        ports:
+        - containerPort: 8080
+        env:
+        # Application configuration
+        - name: SPRING_DATA_REDIS_HOST
+          value: "REDIS_ENDPOINT"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        - name: WORLD_SERVICE_URL
+          value: "http://world-service:5000"
+        
+        # OpenTelemetry configuration
+        - name: OTEL_SERVICE_NAME
+          value: "hello-service"
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=hello-service,service.version=1.0.0"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector:4317"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "grpc"
+        - name: OTEL_METRICS_EXPORTER
+          value: "otlp"
+        - name: OTEL_LOGS_EXPORTER
+          value: "otlp"
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-service
+  namespace: default
+  labels:
+    app: hello-service
+spec:
+  selector:
+    app: hello-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP

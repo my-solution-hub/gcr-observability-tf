@@ -13,36 +13,33 @@ output "public_subnets" {
   value       = module.vpc.public_subnets
 }
 
-output "hello_instance_ids" {
-  description = "IDs of the Hello (Java Spring Boot) instances"
-  value       = aws_instance.hello[*].id
+# EKS Outputs
+output "eks_cluster_id" {
+  description = "EKS cluster ID"
+  value       = module.eks.cluster_id
 }
 
-output "world_instance_ids" {
-  description = "IDs of the World (Python Flask) instances"
-  value       = aws_instance.world[*].id
+output "eks_cluster_endpoint" {
+  description = "EKS cluster endpoint"
+  value       = module.eks.cluster_endpoint
 }
 
-output "hello_private_ips" {
-  description = "Private IP addresses of the Hello instances"
-  value       = aws_instance.hello[*].private_ip
+output "eks_cluster_security_group_id" {
+  description = "EKS cluster security group ID"
+  value       = module.eks.cluster_security_group_id
 }
 
-output "world_private_ips" {
-  description = "Private IP addresses of the World instances"
-  value       = aws_instance.world[*].private_ip
+output "eks_oidc_provider_arn" {
+  description = "EKS OIDC provider ARN"
+  value       = module.eks.oidc_provider_arn
 }
 
-output "hello_alb_dns_name" {
-  description = "DNS name of the Hello Application Load Balancer"
-  value       = aws_lb.main[0].dns_name
+output "otel_collector_role_arn" {
+  description = "OpenTelemetry Collector IAM role ARN for service account"
+  value       = module.eks.otel_collector_role_arn
 }
 
-output "world_alb_dns_name" {
-  description = "DNS name of the World Application Load Balancer"
-  value       = aws_lb.main[1].dns_name
-}
-
+# Database Outputs
 output "rds_cluster_endpoint" {
   description = "RDS cluster writer endpoint"
   value       = aws_rds_cluster.main.endpoint
@@ -63,20 +60,13 @@ output "redis_reader_endpoint" {
   value       = aws_elasticache_replication_group.main.reader_endpoint_address
 }
 
-output "otel_collector_instance_id" {
-  description = "OpenTelemetry Collector instance ID"
-  value       = aws_instance.otel_collector.id
+# ECR Repository Outputs
+output "hello_service_ecr_repository_url" {
+  description = "ECR repository URL for hello service"
+  value       = aws_ecr_repository.hello_service.repository_url
 }
 
-output "otel_collector_private_ip" {
-  description = "OpenTelemetry Collector private IP"
-  value       = aws_instance.otel_collector.private_ip
-}
-
-output "otel_collector_endpoints" {
-  description = "OpenTelemetry Collector endpoints"
-  value = {
-    grpc = "http://${aws_instance.otel_collector.private_ip}:4317"
-    http = "http://${aws_instance.otel_collector.private_ip}:4318"
-  }
+output "world_service_ecr_repository_url" {
+  description = "ECR repository URL for world service"
+  value       = aws_ecr_repository.world_service.repository_url
 }

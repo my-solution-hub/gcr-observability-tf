@@ -34,17 +34,6 @@ variable "public_subnets" {
   type        = list(string)
 }
 
-variable "ami_id" {
-  description = "AMI ID for EC2 instances"
-  type        = string
-}
-
-variable "instance_type" {
-  description = "EC2 instance type"
-  type        = string
-  default     = "t3.micro"
-}
-
 variable "rds_instance_class" {
   description = "RDS instance class"
   type        = string
@@ -57,8 +46,45 @@ variable "redis_node_type" {
   default     = "cache.t4g.micro"
 }
 
-variable "otel_instance_type" {
-  description = "OpenTelemetry Collector instance type"
+# EKS Configuration
+variable "eks_node_instance_type" {
+  description = "EKS node instance type"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
+}
+
+variable "eks_node_min_size" {
+  description = "EKS node group minimum size"
+  type        = number
+  default     = 1
+}
+
+variable "eks_node_max_size" {
+  description = "EKS node group maximum size"
+  type        = number
+  default     = 5
+}
+
+variable "eks_node_desired_size" {
+  description = "EKS node group desired size"
+  type        = number
+  default     = 3
+}
+
+variable "eks_access_role_arn" {
+  description = "IAM role ARN to grant full EKS access (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "eks_admin_role_name" {
+  description = "IAM role name to grant EKS admin access (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "eks_admin_user_name" {
+  description = "IAM user name to grant EKS admin access (optional)"
+  type        = string
+  default     = ""
 }

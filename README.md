@@ -1,6 +1,6 @@
 # AWS China Observability Demo
 
-This project demonstrates observability best practices for AWS China regions with a multi-tier application architecture.
+This project demonstrates observability best practices for AWS China regions with EKS-based microservices architecture.
 
 ## Architecture
 
@@ -17,33 +17,30 @@ This project demonstrates observability best practices for AWS China regions wit
 │  ┌─────────────────────────────────────────────────────────────────────────────┐│
 │  │                           Private Subnets                                   ││
 │  │                                                                             ││
-│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐        ││
-│  │  │ Hello Service   │    │ Hello Service   │    │ OpenTelemetry   │        ││
-│  │  │ (Java Spring)   │    │ (Java Spring)   │    │   Collector     │        ││
-│  │  │   Port 8080     │    │   Port 8080     │    │ Port 4317/4318  │        ││
-│  │  └─────────────────┘    └─────────────────┘    └─────────────────┘        ││
-│  │           │                       │                       │                ││
-│  │           └───────────┬───────────┘                       │                ││
-│  │                       │                                   │                ││
-│  │  ┌─────────────────┐  │  ┌─────────────────┐              │                ││
-│  │  │ World Service   │  │  │ World Service   │              │                ││
-│  │  │ (Python Flask)  │  │  │ (Python Flask)  │              │                ││
-│  │  │   Port 5000     │  │  │   Port 5000     │              │                ││
-│  │  └─────────────────┘  │  └─────────────────┘              │                ││
-│  │           │            │           │                       │                ││
-│  │           └────────────┼───────────┘                       │                ││
-│  │                        │                                   │                ││
-│  │  ┌─────────────────────┼─────────────────┐                 │                ││
-│  │  │    ElastiCache      │                 │                 │                ││
-│  │  │      Redis          │                 │                 │                ││
-│  │  │    Port 6379        │                 │                 │                ││
-│  │  └─────────────────────┼─────────────────┘                 │                ││
-│  │                        │                                   │                ││
-│  │  ┌─────────────────────┼─────────────────┐                 │                ││
-│  │  │    RDS Aurora       │                 │                 │                ││
-│  │  │      MySQL          │                 │                 │                ││
-│  │  │    Port 3306        │                 │                 │                ││
-│  │  └─────────────────────┼─────────────────┘                 │                ││
+│  │  ┌─────────────────────────────────────────────────────────────────────────┐ ││
+│  │  │                        EKS Cluster                                      │ ││
+│  │  │                                                                         │ ││
+│  │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐        │ ││
+│  │  │  │ Hello Service   │  │ World Service   │  │ OpenTelemetry   │        │ ││
+│  │  │  │ (Java Spring)   │  │ (Python Flask)  │  │   Collector     │        │ ││
+│  │  │  │   Port 8080     │  │   Port 5000     │  │ Port 4317/4318  │        │ ││
+│  │  │  └─────────────────┘  └─────────────────┘  └─────────────────┘        │ ││
+│  │  │           │                       │                       │            │ ││
+│  │  │           └───────────┬───────────┘                       │            │ ││
+│  │  │                       │                                   │            │ ││
+│  │  └───────────────────────┼───────────────────────────────────┼────────────┘ ││
+│  │                          │                                   │              ││
+│  │  ┌─────────────────────┼─────────────────┐                 │              ││
+│  │  │    ElastiCache      │                 │                 │              ││
+│  │  │      Redis          │                 │                 │              ││
+│  │  │    Port 6379        │                 │                 │              ││
+│  │  └─────────────────────┼─────────────────┘                 │              ││
+│  │                        │                                   │              ││
+│  │  ┌─────────────────────┼─────────────────┐                 │              ││
+│  │  │    RDS Aurora       │                 │                 │              ││
+│  │  │      MySQL          │                 │                 │              ││
+│  │  │    Port 3306        │                 │                 │              ││
+│  │  └─────────────────────┼─────────────────┘                 │              ││
 │  └─────────────────────────┼─────────────────────────────────────────────────────┘│
 └─────────────────────────────┼─────────────────────────────────────────────────────┘
                               │
@@ -63,9 +60,9 @@ This project demonstrates observability best practices for AWS China regions wit
 ### User Request Flow
 
 ```text
-User → ALB (Hello) → Hello Service → Redis Cache
-                                  ↓ (cache miss)
-                                  World Service → MySQL Database
+User → ALB → EKS Service → Hello Pod → Redis Cache
+                                    ↓ (cache miss)
+                                    World Pod → MySQL Database
 ```
 
 ### Observability Flow
@@ -77,17 +74,26 @@ Applications → OpenTelemetry Collector → AWS Services
 
 ## Infrastructure Components
 
-### Application Tier
+### Container Platform
 
-- **Hello Service (Java Spring Boot)**: Frontend service with web interface
+- **Amazon EKS**: Managed Kubernetes cluster
+  - Kubernetes version 1.32
+  - Managed node groups with auto-scaling
+  - OIDC provider for service account authentication
+  - Container Insights enabled for observability
+
+### Application Services
+
+- **Hello Service (Java Spring Boot)**: Frontend microservice
+  - Deployed as Kubernetes pods
   - Checks Redis cache first for performance
   - Calls World service on cache miss
   - Caches responses for 5 minutes
-  - Exposes health check endpoint
 
-- **World Service (Python Flask)**: Backend API service
+- **World Service (Python Flask)**: Backend API microservice
+  - Deployed as Kubernetes pods
   - Retrieves data from MySQL database
-  - Initializes database with sample data on startup
+  - Initializes database with sample data
   - Provides REST API endpoints
 
 ### Data Tier
@@ -104,21 +110,35 @@ Applications → OpenTelemetry Collector → AWS Services
 
 ### Load Balancing
 
-- **Application Load Balancer (Hello)**: Routes traffic to Hello services
-  - Health checks on port 8080
+- **Application Load Balancer**: Routes external traffic to EKS services
+  - Kubernetes Ingress integration
+  - Health checks and SSL termination
   - Cross-zone load balancing
-
-- **Application Load Balancer (World)**: Routes traffic to World services
-  - Health checks on port 5000
-  - Internal load balancer for backend services
 
 ### Observability Stack
 
 - **OpenTelemetry Collector**: Centralized telemetry collection
+  - Deployed as Kubernetes DaemonSet
   - OTLP receivers (gRPC: 4317, HTTP: 4318)
   - Processes traces, metrics, and logs
   - Forwards to AWS observability services
-  - IAM role with CloudWatch, X-Ray, and Logs permissions
+  - Service account with IAM role for AWS access
+
+## Deployment Strategy
+
+### Infrastructure (Terraform)
+
+- **VPC and Networking**: Subnets, security groups, NAT gateways
+- **EKS Cluster**: Control plane and managed node groups
+- **Data Services**: RDS Aurora MySQL and ElastiCache Redis
+- **IAM Roles**: Service accounts for AWS service integration
+
+### Application Deployment (Flux CD)
+
+- **GitOps Approach**: Applications deployed via Flux CD
+- **Kubernetes Manifests**: Deployments, services, ingress
+- **Configuration Management**: ConfigMaps and secrets
+- **Continuous Deployment**: Automated updates from Git repository
 
 ## AWS Services Integration
 
@@ -168,13 +188,13 @@ Applications → OpenTelemetry Collector → AWS Services
 2. **Plan deployment**:
 
    ```bash
-   ./scripts/plan.sh dev cn-north-1
+   ./scripts/plan.sh dev cn-north-1 cn
    ```
 
 3. **Deploy infrastructure**:
 
    ```bash
-   ./scripts/deploy.sh dev cn-north-1
+   ./scripts/deploy.sh dev cn-north-1 cn
    ```
 
 4. **View outputs**:
@@ -190,7 +210,7 @@ Applications → OpenTelemetry Collector → AWS Services
 ### Cleanup
 
 ```bash
-./scripts/destroy.sh dev cn-north-1
+./scripts/destroy.sh dev cn-north-1 cn
 ```
 
 ## Monitoring and Observability

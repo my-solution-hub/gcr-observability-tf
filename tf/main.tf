@@ -15,73 +15,26 @@ provider "aws" {
   dynamic "endpoints" {
     for_each = startswith(var.aws_region, "cn-") ? [1] : []
     content {
-      ec2 = "https://ec2.${var.aws_region}.amazonaws.com.cn"
-      iam = "https://iam.cn-north-1.amazonaws.com.cn"
-      rds = "https://rds.${var.aws_region}.amazonaws.com.cn"
-      s3  = "https://s3.${var.aws_region}.amazonaws.com.cn"
-      sts = "https://sts.${var.aws_region}.amazonaws.com.cn"
+      ec2         = "https://ec2.${var.aws_region}.amazonaws.com.cn"
+      iam         = "https://iam.cn-north-1.amazonaws.com.cn"
+      rds         = "https://rds.${var.aws_region}.amazonaws.com.cn"
+      s3          = "https://s3.${var.aws_region}.amazonaws.com.cn"
+      sts         = "https://sts.${var.aws_region}.amazonaws.com.cn"
+      eks         = "https://eks.${var.aws_region}.amazonaws.com.cn"
+      elasticache = "https://elasticache.${var.aws_region}.amazonaws.com.cn"
     }
   }
 }
 
-# IAM Role for OpenTelemetry Collector
-resource "aws_iam_role" "otel_collector_role" {
-  name = "${var.project_name}-${var.environment}-otel-collector-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
+# Data sources to resolve IAM ARNs from names
+data "aws_iam_role" "eks_admin_role" {
+  count = var.eks_admin_role_name != "" ? 1 : 0
+  name  = var.eks_admin_role_name
 }
 
-resource "aws_iam_role_policy" "otel_collector_policy" {
-  name = "${var.project_name}-${var.environment}-otel-collector-policy"
-  role = aws_iam_role.otel_collector_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:PutMetricData",
-          "ec2:DescribeVolumes",
-          "ec2:DescribeTags",
-          "logs:PutLogEvents",
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:DescribeLogStreams",
-          "logs:DescribeLogGroups",
-          "xray:PutTraceSegments",
-          "xray:PutTelemetryRecords"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_instance_profile" "otel_collector_profile" {
-  name = "${var.project_name}-${var.environment}-otel-collector-profile"
-  role = aws_iam_role.otel_collector_role.name
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
+data "aws_iam_user" "eks_admin_user" {
+  count     = var.eks_admin_user_name != "" ? 1 : 0
+  user_name = var.eks_admin_user_name
 }
 
 # VPC
@@ -105,76 +58,31 @@ module "vpc" {
   }
 }
 
-# Security Groups
-resource "aws_security_group" "web" {
-  name_prefix = "${var.project_name}-${var.environment}-web"
-  vpc_id      = module.vpc.vpc_id
+# EKS cluster
+module "eks" {
+  source = "./modules/eks"
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  cluster_name = "${var.environment}-${var.aws_region}"
+  vpc_id       = module.vpc.vpc_id
+  subnet_ids   = module.vpc.private_subnets
 
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
+  node_instance_type = var.eks_node_instance_type
+  node_min_size      = var.eks_node_min_size
+  node_max_size      = var.eks_node_max_size
+  node_desired_size  = var.eks_node_desired_size
 
-  ingress {
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  access_role_arn      = var.eks_access_role_arn
+  eks_admin_role_arn   = var.eks_admin_role_name != "" ? data.aws_iam_role.eks_admin_role[0].arn : ""
+  eks_admin_user_arn   = var.eks_admin_user_name != "" ? data.aws_iam_user.eks_admin_user[0].arn : ""
 
   tags = {
     Environment = var.environment
+    Region      = var.aws_region
     Project     = var.project_name
   }
 }
 
-resource "aws_security_group" "alb" {
-  name_prefix = "${var.project_name}-${var.environment}-alb"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
+# Security group for RDS
 resource "aws_security_group" "rds" {
   name_prefix = "${var.project_name}-${var.environment}-rds"
   vpc_id      = module.vpc.vpc_id
@@ -183,7 +91,7 @@ resource "aws_security_group" "rds" {
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
+    security_groups = [module.eks.cluster_security_group_id]
   }
 
   tags = {
@@ -192,6 +100,7 @@ resource "aws_security_group" "rds" {
   }
 }
 
+# Security group for Redis
 resource "aws_security_group" "redis" {
   name_prefix = "${var.project_name}-${var.environment}-redis"
   vpc_id      = module.vpc.vpc_id
@@ -200,219 +109,12 @@ resource "aws_security_group" "redis" {
     from_port       = 6379
     to_port         = 6379
     protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
+    security_groups = [module.eks.cluster_security_group_id]
   }
 
   tags = {
     Environment = var.environment
     Project     = var.project_name
-  }
-}
-
-resource "aws_security_group" "otel_collector" {
-  name_prefix = "${var.project_name}-${var.environment}-otel"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port       = 4317
-    to_port         = 4317
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
-    description     = "OTLP gRPC receiver"
-  }
-
-  ingress {
-    from_port       = 4318
-    to_port         = 4318
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
-    description     = "OTLP HTTP receiver"
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-# EC2 Instances - 2 Java Spring Boot (hello) and 2 Python Flask (world)
-resource "aws_instance" "hello" {
-  count                  = 2
-  ami                    = var.ami_id
-  instance_type          = var.instance_type
-  subnet_id              = element(module.vpc.private_subnets, count.index % length(module.vpc.private_subnets))
-  vpc_security_group_ids = [aws_security_group.web.id]
-
-  user_data = base64encode(templatefile("${path.module}/user_data_hello.sh", {
-    instance_name = "${var.project_name}-hello-${count.index + 1}"
-    redis_endpoint = aws_elasticache_replication_group.main.primary_endpoint_address
-    world_endpoint = "http://${aws_instance.world[0].private_ip}:5000"
-  }))
-
-  tags = {
-    Name        = "${var.project_name}-hello-${count.index + 1}"
-    Environment = var.environment
-    Project     = var.project_name
-    AppType     = "hello"
-  }
-
-  depends_on = [aws_instance.world, aws_elasticache_replication_group.main]
-}
-
-resource "aws_instance" "world" {
-  count                  = 2
-  ami                    = var.ami_id
-  instance_type          = var.instance_type
-  subnet_id              = element(module.vpc.private_subnets, count.index % length(module.vpc.private_subnets))
-  vpc_security_group_ids = [aws_security_group.web.id]
-
-  user_data = base64encode(templatefile("${path.module}/user_data_world.sh", {
-    instance_name = "${var.project_name}-world-${count.index + 1}"
-    db_endpoint = aws_rds_cluster.main.endpoint
-    db_name = "observability"
-    db_user = "admin"
-    db_password = "changeme123!"
-  }))
-
-  tags = {
-    Name        = "${var.project_name}-world-${count.index + 1}"
-    Environment = var.environment
-    Project     = var.project_name
-    AppType     = "world"
-  }
-
-  depends_on = [aws_rds_cluster.main]
-}
-
-# OpenTelemetry Collector EC2 Instance
-resource "aws_instance" "otel_collector" {
-  ami                    = var.ami_id
-  instance_type          = var.otel_instance_type
-  subnet_id              = module.vpc.private_subnets[0]
-  vpc_security_group_ids = [aws_security_group.otel_collector.id]
-  iam_instance_profile   = aws_iam_instance_profile.otel_collector_profile.name
-
-  user_data = base64encode(templatefile("${path.module}/user_data_otel.sh", {
-    instance_name = "${var.project_name}-otel-collector"
-    aws_region = var.aws_region
-  }))
-
-  tags = {
-    Name        = "${var.project_name}-otel-collector"
-    Environment = var.environment
-    Project     = var.project_name
-    AppType     = "otel-collector"
-  }
-}
-
-# Application Load Balancers
-resource "aws_lb" "main" {
-  count              = 2
-  name               = "${var.project_name}-alb-${count.index + 1}"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = module.vpc.public_subnets
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-resource "aws_lb_target_group" "hello" {
-  name     = "${var.project_name}-hello-tg"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = module.vpc.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
-    interval            = 30
-    path                = "/health"
-    matcher             = "200"
-    port                = "8080"
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-resource "aws_lb_target_group" "world" {
-  name     = "${var.project_name}-world-tg"
-  port     = 5000
-  protocol = "HTTP"
-  vpc_id   = module.vpc.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
-    interval            = 30
-    path                = "/health"
-    matcher             = "200"
-    port                = "5000"
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-resource "aws_lb_target_group_attachment" "hello" {
-  count            = 2
-  target_group_arn = aws_lb_target_group.hello.arn
-  target_id        = aws_instance.hello[count.index].id
-  port             = 8080
-}
-
-resource "aws_lb_target_group_attachment" "world" {
-  count            = 2
-  target_group_arn = aws_lb_target_group.world.arn
-  target_id        = aws_instance.world[count.index].id
-  port             = 5000
-}
-
-resource "aws_lb_listener" "hello" {
-  load_balancer_arn = aws_lb.main[0].arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.hello.arn
-  }
-}
-
-resource "aws_lb_listener" "world" {
-  load_balancer_arn = aws_lb.main[1].arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.world.arn
   }
 }
 
@@ -420,7 +122,7 @@ resource "aws_lb_listener" "world" {
 resource "aws_rds_cluster" "main" {
   cluster_identifier      = "${var.project_name}-${var.environment}-${var.aws_region}"
   engine                  = "aurora-mysql"
-  engine_version          = "8.0.mysql_aurora.3.02.0"
+  engine_version          = "8.0.mysql_aurora.3.09.0"
   database_name           = "observability"
   master_username         = "admin"
   master_password         = "changeme123!"
@@ -496,5 +198,36 @@ resource "aws_elasticache_replication_group" "main" {
     Environment = var.environment
     Region      = var.aws_region
     Project     = var.project_name
+  }
+}
+
+# ECR Repositories
+resource "aws_ecr_repository" "hello_service" {
+  name                 = "${var.project_name}-hello-service"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+    Service     = "hello"
+  }
+}
+
+resource "aws_ecr_repository" "world_service" {
+  name                 = "${var.project_name}-world-service"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+    Service     = "world"
   }
 }

@@ -1,6 +1,11 @@
 # Local .terraform directories
 .terraform/
 
+# app
+**/__pycache__/
+**/target/
+**/.dockerignore
+
 # .tfstate files
 *.tfstate
 *.tfstate.*

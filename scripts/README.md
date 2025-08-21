@@ -10,6 +10,21 @@ This directory contains scripts to manage the Terraform infrastructure for the A
 
 ## Scripts
 
+### `bootstrap.sh` (First Time Setup)
+Create the S3 bucket and DynamoDB table required for Terraform backend.
+
+**Run this ONCE before any other operations:**
+
+```bash
+./scripts/bootstrap.sh <region> [profile]
+```
+
+Examples:
+```bash
+./scripts/bootstrap.sh cn-north-1
+./scripts/bootstrap.sh cn-northwest-1 cn
+```
+
 ### `init.sh`
 Initialize Terraform with the appropriate backend configuration.
 
@@ -84,27 +99,46 @@ Examples:
 
 ## Typical Workflow
 
-1. **Validate configuration:**
+### First Time Setup
+
+1. **Bootstrap backend resources:**
+   ```bash
+   ./scripts/bootstrap.sh cn-north-1
+   ```
+
+2. **Validate configuration:**
    ```bash
    ./scripts/validate.sh
    ```
 
-2. **Plan deployment:**
+3. **Plan deployment:**
    ```bash
    ./scripts/plan.sh dev cn-north-1
    ```
 
-3. **Deploy infrastructure:**
+4. **Deploy infrastructure:**
    ```bash
    ./scripts/deploy.sh dev cn-north-1
    ```
 
-4. **Check outputs:**
+5. **Check outputs:**
    ```bash
    ./scripts/outputs.sh
    ```
 
-5. **Clean up (when done):**
+### Subsequent Deployments
+
+1. **Plan deployment:**
+   ```bash
+   ./scripts/plan.sh dev cn-north-1
+   ```
+
+2. **Deploy infrastructure:**
+   ```bash
+   ./scripts/deploy.sh dev cn-north-1
+   ```
+
+3. **Clean up (when done):**
    ```bash
    ./scripts/destroy.sh dev cn-north-1
    ```
