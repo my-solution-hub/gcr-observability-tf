@@ -19,10 +19,10 @@ spec:
             name: hello-service
             port:
               number: 8080
-      - path: /world
+      - path: /metrics
         pathType: Prefix
         backend:
           service:
-            name: world-service
+            name: otel-collector
             port:
-              number: 5000
+              number: 4318

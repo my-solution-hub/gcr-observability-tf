@@ -1,0 +1,48 @@
+stages:
+  - validate
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+# Terraform validation
+terraform-validate:
+  stage: validate
+  image: hashicorp/terraform:1.6
+  script:
+    - cd tf
+    - terraform fmt -check
+    - terraform validate
+  only:
+    - merge_requests
+    - main
+
+# Build Docker images
+build-images:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker info
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+  script:
+    - ./scripts/build-images.sh $CI_COMMIT_SHORT_SHA push
+  only:
+    - main
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+
+# Deploy to EKS
+deploy-k8s:
+  stage: deploy
+  image: alpine/k8s:1.28.4
+  before_script:
+    - aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+  script:
+    - ./scripts/deploy-k8s.sh
+  only:
+    - main
+  when: manual

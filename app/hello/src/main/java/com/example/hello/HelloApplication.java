@@ -33,12 +33,47 @@ public class HelloApplication {
     public String home() {
         return """
             <html>
-            <head><title>Hello Service</title></head>
+            <head>
+                <title>Hello Service - Observability Demo</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    button { padding: 10px 20px; margin: 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer; }
+                    button:hover { background: #005a87; }
+                    #result { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px; min-height: 50px; }
+                </style>
+            </head>
             <body>
                 <h1>Hello Service - Observability Demo</h1>
-                <p><a href='/api/data'>Get Data from World Service</a></p>
-                <p><a href='/health'>Health Check</a></p>
-                <p>This service checks Redis cache first, then calls World service if needed.</p>
+                <p>This service demonstrates caching with Redis and microservice communication.</p>
+                
+                <button onclick="fetchData()">Get Data from World Service</button>
+                <button onclick="checkHealth()">Check Health</button>
+                
+                <div id="result">Click a button to see results...</div>
+                
+                <script>
+                    async function fetchData() {
+                        document.getElementById('result').innerHTML = 'Loading...';
+                        try {
+                            const response = await fetch('/api/data');
+                            const data = await response.text();
+                            document.getElementById('result').innerHTML = '<strong>Data:</strong> ' + data;
+                        } catch (error) {
+                            document.getElementById('result').innerHTML = '<strong>Error:</strong> ' + error.message;
+                        }
+                    }
+                    
+                    async function checkHealth() {
+                        document.getElementById('result').innerHTML = 'Checking health...';
+                        try {
+                            const response = await fetch('/health');
+                            const data = await response.text();
+                            document.getElementById('result').innerHTML = '<strong>Health Status:</strong> ' + data;
+                        } catch (error) {
+                            document.getElementById('result').innerHTML = '<strong>Error:</strong> ' + error.message;
+                        }
+                    }
+                </script>
             </body>
             </html>
             """;

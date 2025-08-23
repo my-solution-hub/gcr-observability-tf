@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: world-service
-        image: WORLD_ECR_URL:latest
+        image: $WORLD_ECR_URL:latest
         ports:
         - containerPort: 5000
         env:

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: hello-service
-        image: HELLO_ECR_URL:latest
+        image: $HELLO_ECR_URL:latest
         ports:
         - containerPort: 8080
         env:
