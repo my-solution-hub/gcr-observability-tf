@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
       - name: hello-service
-        image: $HELLO_ECR_URL:latest
+        image: ${HELLO_ECR_URL}:latest
         ports:
         - containerPort: 8080
         env:
         # Application configuration
         - name: SPRING_DATA_REDIS_HOST
-          value: "REDIS_ENDPOINT"
+          value: "${REDIS_ENDPOINT}"
         - name: SPRING_DATA_REDIS_PORT
           value: "6379"
         - name: WORLD_SERVICE_URL
@@ -34,6 +34,8 @@ spec:
           value: "hello-service"
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: "service.name=hello-service,service.version=1.0.0"
+        # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        #   value: "http://cloudwatch-agent.amazon-cloudwatch:4315"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://otel-collector:4317"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL

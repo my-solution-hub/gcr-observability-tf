@@ -27,10 +27,13 @@ else
     echo "Deploying $ENVIRONMENT environment in $REGION region..."
 fi
 
-# Initialize with correct backend
+# Initialize with correct backend and upgrade providers
 ./scripts/init.sh $REGION $PROFILE
 
 cd tf
+
+# Upgrade providers to handle version conflicts
+terraform init -upgrade
 
 terraform apply \
     -var-file=environments/${ENVIRONMENT}/${REGION}.tfvars \

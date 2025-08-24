@@ -1,8 +1,7 @@
 FROM amazoncorretto:17-alpine
 
 # Install OpenTelemetry Java agent
-RUN apk add --no-cache wget && \
-    wget -O /opt/opentelemetry-javaagent.jar https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
+COPY agent/aws-opentelemetry-agent.jar /opt/opentelemetry-javaagent.jar
 
 # Copy application JAR
 COPY target/hello-app-1.0.0.jar /app/hello-app.jar

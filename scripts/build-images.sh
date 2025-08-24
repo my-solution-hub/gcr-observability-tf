@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Usage: ./scripts/build-images.sh [tag] [push]
-# Example: ./scripts/build-images.sh v1.0.0
-# Example: ./scripts/build-images.sh v1.0.0 push
+# Example: ./scripts/build-images.sh latest
+# Example: ./scripts/build-images.sh latest push
 
 TAG=${1:-latest}
 PUSH=${2}
@@ -11,6 +11,8 @@ echo "Building Docker images with tag: $TAG"
 
 # Get ECR repository URLs from Terraform outputs
 cd tf
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+export AWS_PROFILE=cn
 HELLO_ECR_URL=$(terraform output -raw hello_service_ecr_repository_url 2>/dev/null)
 WORLD_ECR_URL=$(terraform output -raw world_service_ecr_repository_url 2>/dev/null)
 cd ..

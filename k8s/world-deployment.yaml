@@ -17,13 +17,15 @@ spec:
     spec:
       containers:
       - name: world-service
-        image: $WORLD_ECR_URL:latest
+        image: ${WORLD_ECR_URL}:latest
         ports:
         - containerPort: 5000
         env:
         # Application configuration
         - name: DB_HOST
-          value: "RDS_ENDPOINT"
+          value: "${RDS_ENDPOINT}"
+        - name: DB_PORT
+          value: "3306"
         - name: DB_NAME
           value: "observability"
         - name: DB_USER
@@ -36,6 +38,8 @@ spec:
           value: "world-service"
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: "service.name=world-service,service.version=1.0.0"
+        # - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        #   value: "http://cloudwatch-agent.amazon-cloudwatch:4315"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://otel-collector:4317"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL

@@ -1,6 +1,35 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: aws-config
+  namespace: default
+data:
+  config: |
+    [default]
+    region = cn-north-1
+    sts_regional_endpoints = regional
+    use_dualstack_endpoint = false
+    
+    [profile default]
+    region = cn-north-1
+    sts_regional_endpoints = regional
+    
+    [services sts]
+    endpoint_url = https://sts.cn-north-1.amazonaws.com.cn
+    
+    [services xray]
+    endpoint_url = https://xray.cn-north-1.amazonaws.com.cn
+    
+    [services monitoring]  
+    endpoint_url = https://monitoring.cn-north-1.amazonaws.com.cn
+    
+    [services logs]
+    endpoint_url = https://logs.cn-north-1.amazonaws.com.cn
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: otel-collector-config
   namespace: default
 data:
@@ -17,10 +46,11 @@ data:
       batch:
       memory_limiter:
         limit_mib: 512
+        check_interval: 5s
 
     exporters:
-      awscloudwatchmetrics:
-        region: AWS_REGION
+      awsemf:
+        region: cn-north-1
         namespace: "ObservabilityDemo"
         dimension_rollup_option: "NoDimensionRollup"
         metric_declarations:
@@ -29,12 +59,7 @@ data:
               - ".*"
 
       awsxray:
-        region: AWS_REGION
-
-      awscloudwatchlogs:
-        region: AWS_REGION
-        log_group_name: "/aws/otel/observability-demo"
-        log_stream_name: "otel-collector"
+        region: cn-north-1
 
     service:
       pipelines:
@@ -46,12 +71,7 @@ data:
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [awscloudwatchmetrics]
-        
-        logs:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
-          exporters: [awscloudwatchlogs]
+          exporters: [awsemf]
 
       extensions: []
 
@@ -76,9 +96,41 @@ spec:
       serviceAccountName: otel-collector
       containers:
       - name: otel-collector
-        image: otel/opentelemetry-collector-contrib:0.132.0
+        image: docker.1ms.run/otel/opentelemetry-collector-contrib:0.132.0
         args:
         - --config=/etc/otel-collector-config/config.yaml
+        env:
+        - name: AWS_STS_REGIONAL_ENDPOINTS
+          value: "regional"
+        - name: AWS_REGION
+          value: "cn-north-1"
+        - name: AWS_DEFAULT_REGION
+          value: "cn-north-1"
+        - name: AWS_STS_ENDPOINT
+          value: "https://sts.cn-north-1.amazonaws.com.cn"
+        - name: AWS_XRAY_ENDPOINT
+          value: "https://xray.cn-north-1.amazonaws.com.cn"
+        - name: AWS_CLOUDWATCH_ENDPOINT
+          value: "https://monitoring.cn-north-1.amazonaws.com.cn"
+        - name: AWS_LOGS_ENDPOINT
+          value: "https://logs.cn-north-1.amazonaws.com.cn"
+        - name: AWS_CONFIG_FILE
+          value: "/etc/aws/config"
+        - name: AWS_USE_VPC_ENDPOINT_DISCOVERY
+          value: "false"
+        - name: AWS_DISABLE_EC2_METADATA
+          value: "false"
+        - name: AWS_ENDPOINT_URL_STS
+          value: "https://sts.cn-north-1.amazonaws.com.cn"
+        - name: AWS_ENDPOINT_URL_XRAY
+          value: "https://xray.cn-north-1.amazonaws.com.cn"
+        - name: AWS_ENDPOINT_URL_CLOUDWATCH
+          value: "https://monitoring.cn-north-1.amazonaws.com.cn"
+        # Disable VPC endpoints if causing issues
+        - name: AWS_EC2_METADATA_DISABLED
+          value: "false"
+        - name: AWS_SDK_LOAD_CONFIG
+          value: "true"
         ports:
         - containerPort: 4317
           name: otlp-grpc
@@ -87,6 +139,8 @@ spec:
         volumeMounts:
         - name: otel-collector-config-vol
           mountPath: /etc/otel-collector-config
+        - name: aws-config-vol
+          mountPath: /etc/aws
         resources:
           requests:
             memory: "256Mi"
@@ -98,6 +152,9 @@ spec:
       - name: otel-collector-config-vol
         configMap:
           name: otel-collector-config
+      - name: aws-config-vol
+        configMap:
+          name: aws-config
 
 ---
 apiVersion: v1
@@ -126,4 +183,4 @@ metadata:
   name: otel-collector
   namespace: default
   annotations:
-    eks.amazonaws.com/role-arn: $OTEL_COLLECTOR_ROLE_ARN
+    eks.amazonaws.com/role-arn: ${OTEL_COLLECTOR_ROLE_ARN}

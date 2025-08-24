@@ -8,11 +8,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.context.annotation.Bean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.Duration;
 
 @SpringBootApplication
 @RestController
 public class HelloApplication {
+
+    private static final Logger logger = LoggerFactory.getLogger(HelloApplication.class);
 
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
@@ -26,11 +30,13 @@ public class HelloApplication {
     }
 
     public static void main(String[] args) {
+        logger.info("Starting Hello Service application");
         SpringApplication.run(HelloApplication.class, args);
     }
 
     @GetMapping("/")
     public String home() {
+        logger.info("Home page requested");
         return """
             <html>
             <head>
@@ -81,6 +87,7 @@ public class HelloApplication {
 
     @GetMapping("/api/data")
     public String getData() {
+        logger.info("API data request received");
         String cacheKey = "world_data";
         
         try {
@@ -88,25 +95,30 @@ public class HelloApplication {
             String cachedData = redisTemplate.opsForValue().get(cacheKey);
             
             if (cachedData != null) {
+                logger.info("Cache hit - returning cached data");
                 return "From Redis Cache: " + cachedData;
             }
             
+            logger.info("Cache miss - calling world service at: {}", worldServiceUrl);
             // If not in cache, call World service
             RestTemplate restTemplate = new RestTemplate();
             String worldData = restTemplate.getForObject(worldServiceUrl + "/api/data", String.class);
             
             // Cache the result for 5 minutes
             redisTemplate.opsForValue().set(cacheKey, worldData, Duration.ofMinutes(5));
+            logger.info("Data cached successfully for 5 minutes");
             
             return "From World Service (cached): " + worldData;
             
         } catch (Exception e) {
+            logger.error("Error processing data request: {}", e.getMessage());
             return "Error: " + e.getMessage();
         }
     }
 
     @GetMapping("/health")
     public String health() {
+        logger.debug("Health check requested");
         return "OK";
     }
 }

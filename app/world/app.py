@@ -3,18 +3,31 @@ import pymysql
 import os
 import time
 import json
+import logging
+import sys
+
+# Configure logging to stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 # Database configuration from environment variables
 DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_PORT = int(os.getenv('DB_PORT', '3306'))
 DB_NAME = os.getenv('DB_NAME', 'observability')
 DB_USER = os.getenv('DB_USER', 'admin')
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'changeme123!')
 
 def get_db_connection():
+    logger.debug(f"Connecting to database at {DB_HOST}:{DB_PORT}")
     return pymysql.connect(
         host=DB_HOST,
+        port=DB_PORT,
         user=DB_USER,
         password=DB_PASSWORD,
         database=DB_NAME,
@@ -24,6 +37,7 @@ def get_db_connection():
 def init_database():
     """Initialize database with sample data"""
     try:
+        logger.info("Initializing database...")
         connection = get_db_connection()
         with connection.cursor() as cursor:
             # Create table if not exists
@@ -40,6 +54,7 @@ def init_database():
             count = cursor.fetchone()[0]
             
             if count == 0:
+                logger.info("Inserting sample data into database")
                 sample_data = [
                     "Hello from the World service!",
                     "Data retrieved from MySQL database",
@@ -56,14 +71,15 @@ def init_database():
             
             connection.commit()
         connection.close()
-        print("Database initialized successfully")
+        logger.info("Database initialized successfully")
         return True
     except Exception as e:
-        print(f"Database initialization error: {e}")
+        logger.error(f"Database initialization error: {e}")
         return False
 
 @app.route('/')
 def home():
+    logger.info("Home page requested")
     template = """
     <html>
     <head><title>World Service</title></head>
@@ -80,6 +96,7 @@ def home():
 @app.route('/api/data')
 def get_data():
     """Get random data from database"""
+    logger.info("API data request received")
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
@@ -95,8 +112,10 @@ def get_data():
                 'source': 'mysql_database',
                 'service': 'world'
             }
+            logger.info(f"Returning data: {result[0]}")
             return json.dumps(response_data)
         else:
+            logger.warning("No data found in database")
             return json.dumps({
                 'message': 'No data found', 
                 'source': 'mysql_database',
@@ -104,6 +123,7 @@ def get_data():
             })
             
     except Exception as e:
+        logger.error(f"Database query error: {e}")
         return json.dumps({
             'error': str(e), 
             'source': 'mysql_database',
@@ -113,25 +133,28 @@ def get_data():
 @app.route('/health')
 def health():
     """Health check endpoint"""
+    logger.debug("Health check requested")
     try:
         # Test database connection
         connection = get_db_connection()
         connection.close()
+        logger.debug("Health check passed")
         return 'OK'
     except Exception as e:
+        logger.error(f"Health check failed: {e}")
         return f'Database connection failed: {str(e)}', 500
 
 if __name__ == '__main__':
-    print("Starting World Service...")
-    print(f"Database: {DB_HOST}/{DB_NAME}")
+    logger.info("Starting World Service...")
+    logger.info(f"Database: {DB_HOST}:{DB_PORT}/{DB_NAME}")
     
     # Wait a bit for database to be ready
     time.sleep(10)
     
     # Initialize database
     if init_database():
-        print("Database ready, starting Flask app...")
+        logger.info("Database ready, starting Flask app...")
         app.run(host='0.0.0.0', port=5000, debug=True)
     else:
-        print("Failed to initialize database")
+        logger.error("Failed to initialize database")
         exit(1)

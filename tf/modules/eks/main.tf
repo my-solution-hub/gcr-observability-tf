@@ -72,6 +72,9 @@ module "eks" {
     vpc-cni                = {
       before_compute = true
     }
+    amazon-cloudwatch-observability = {
+      most_recent = true
+    }
   }
 
   eks_managed_node_groups = {
@@ -85,6 +88,11 @@ module "eks" {
       
       # Ensure VPC CNI is available
       create_before_destroy = true
+      
+      # Add CloudWatch agent permissions
+      iam_role_additional_policies = {
+        CloudWatchAgentServerPolicy = "arn:aws-cn:iam::aws:policy/CloudWatchAgentServerPolicy"
+      }
     }
   }
 
@@ -103,12 +111,6 @@ resource "aws_iam_role" "otel_collector_role" {
         Effect = "Allow"
         Principal = {
           Federated = module.eks.oidc_provider_arn
-        }
-        Condition = {
-          StringEquals = {
-            "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub" = "system:serviceaccount:observability:otel-collector"
-            "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud" = "sts.amazonaws.com"
-          }
         }
       }
     ]
