@@ -18,6 +18,7 @@ spec:
       containers:
       - name: world-service
         image: ${WORLD_ECR_URL}:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
         env:
@@ -41,13 +42,21 @@ spec:
         # - name: OTEL_EXPORTER_OTLP_ENDPOINT
         #   value: "http://cloudwatch-agent.amazon-cloudwatch:4315"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: "http://otel-collector:4317"
+          value: "http://otel-collector.default.svc.cluster.local:4318"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
-          value: "grpc"
-        - name: OTEL_METRICS_EXPORTER
-          value: "otlp"
-        - name: OTEL_LOGS_EXPORTER
-          value: "otlp"
+          value: "http/protobuf"
+        - name: OTEL_LOG_LEVEL
+          value: "debug"
+        - name: OTEL_PYTHON_LOG_CORRELATION
+          value: "true"
+        - name: OTEL_PROPAGATORS
+          value: "xray"
+        - name: OTEL_PYTHON_ID_GENERATOR
+          value: "xray"
+        # - name: OTEL_METRICS_EXPORTER
+        #   value: "otlp"
+        # - name: OTEL_LOGS_EXPORTER
+        #   value: "otlp"
         
         resources:
           requests:
@@ -68,8 +77,8 @@ spec:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 10
+          periodSeconds: 10
 
 ---
 apiVersion: v1

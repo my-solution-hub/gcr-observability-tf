@@ -21,7 +21,7 @@ cd ..
 echo "Building hello-service..."
 cd app/hello
 mvn clean package -DskipTests
-docker build -t hello-service:$TAG .
+docker build --platform linux/amd64 -t hello-service:$TAG .
 if [ -n "$HELLO_ECR_URL" ]; then
     docker tag hello-service:$TAG $HELLO_ECR_URL:$TAG
 fi
@@ -30,7 +30,7 @@ cd ../..
 # Build Python Flask world app  
 echo "Building world-service..."
 cd app/world
-docker build -t world-service:$TAG .
+docker build --platform linux/amd64 -t world-service:$TAG .
 if [ -n "$WORLD_ECR_URL" ]; then
     docker tag world-service:$TAG $WORLD_ECR_URL:$TAG
 fi

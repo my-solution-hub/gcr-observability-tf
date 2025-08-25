@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.Duration;
@@ -117,8 +118,8 @@ public class HelloApplication {
     }
 
     @GetMapping("/health")
-    public String health() {
+    public ResponseEntity<String> health() {
         logger.debug("Health check requested");
-        return "OK";
+        return ResponseEntity.ok("OK");
     }
 }

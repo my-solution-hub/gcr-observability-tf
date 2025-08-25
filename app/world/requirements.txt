@@ -1,2 +1,7 @@
 Flask==3.0.0
 PyMySQL==1.1.0
+opentelemetry-distro
+opentelemetry-instrumentation
+opentelemetry-exporter-otlp
+opentelemetry-propagator-aws-xray
+opentelemetry-sdk-extension-aws

@@ -47,30 +47,63 @@ data:
       memory_limiter:
         limit_mib: 512
         check_interval: 5s
+      filter:
+        metrics:
+          exclude:
+            match_type: strict
+            metric_names:
+              - otlp.exporter.exported
+              - queueSize
+              - otlp.exporter.seen
+              - processedSpans
+      resource:
+        attributes:
+          - key: service.name
+            action: upsert
+            from_attribute: service.name
+
+
+    connectors:
+      spanmetrics:
+        histogram:
+          explicit:
+            buckets: [0.1, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]
+        dimensions:
+          - name: http.method
+            default: GET
+          - name: http.status_code
+          - name: http.route
+          - name: http.host
+        metrics_expiration: 5m
+        exemplars:
+          enabled: true
+        metrics_flush_interval: 30s
 
     exporters:
       awsemf:
         region: cn-north-1
         namespace: "ObservabilityDemo"
         dimension_rollup_option: "NoDimensionRollup"
-        metric_declarations:
-          - dimensions: [[service.name], [service.name, service.version]]
-            metric_name_selectors:
-              - ".*"
-
+      # debug:
+      #   verbosity: detailed
       awsxray:
         region: cn-north-1
+        no_verify_ssl: false
+        endpoint: https://xray.cn-north-1.amazonaws.com.cn
 
     service:
+      # telemetry:
+      #   logs:
+      #     level: debug
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, batch]
-          exporters: [awsxray]
+          processors: [memory_limiter]
+          exporters: [awsxray, spanmetrics]
         
         metrics:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
+          receivers: [otlp, spanmetrics]
+          processors: [memory_limiter, resource, filter, batch]
           exporters: [awsemf]
 
       extensions: []

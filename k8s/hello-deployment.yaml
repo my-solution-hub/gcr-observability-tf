@@ -18,6 +18,7 @@ spec:
       containers:
       - name: hello-service
         image: ${HELLO_ECR_URL}:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
@@ -40,10 +41,10 @@ spec:
           value: "http://otel-collector:4317"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: "grpc"
-        - name: OTEL_METRICS_EXPORTER
-          value: "otlp"
-        - name: OTEL_LOGS_EXPORTER
-          value: "otlp"
+        # - name: OTEL_METRICS_EXPORTER
+        #   value: "otlp"
+        # - name: OTEL_LOGS_EXPORTER
+        #   value: "otlp"
         
         resources:
           requests:
@@ -64,8 +65,8 @@ spec:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 10
+          periodSeconds: 10
 
 ---
 apiVersion: v1
