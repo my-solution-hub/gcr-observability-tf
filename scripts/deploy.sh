@@ -33,7 +33,7 @@ fi
 cd tf
 
 # Upgrade providers to handle version conflicts
-terraform init -upgrade
+terraform init
 
 terraform apply \
     -var-file=environments/${ENVIRONMENT}/${REGION}.tfvars \

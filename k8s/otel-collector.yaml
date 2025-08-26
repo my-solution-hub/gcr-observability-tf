@@ -61,7 +61,14 @@ data:
           - key: service.name
             action: upsert
             from_attribute: service.name
-
+      resourcedetection/eks:
+        detectors: [env, eks]
+        timeout: 15s
+        override: true
+        eks:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
 
     connectors:
       spanmetrics:
@@ -73,7 +80,6 @@ data:
             default: GET
           - name: http.status_code
           - name: http.route
-          - name: http.host
         metrics_expiration: 5m
         exemplars:
           enabled: true
@@ -98,7 +104,7 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter]
+          processors: [memory_limiter, resourcedetection/eks]
           exporters: [awsxray, spanmetrics]
         
         metrics:
@@ -127,6 +133,11 @@ spec:
         app: otel-collector
     spec:
       serviceAccountName: otel-collector
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      securityContext:
+        fsGroup: 65534
       containers:
       - name: otel-collector
         image: docker.1ms.run/otel/opentelemetry-collector-contrib:0.132.0
@@ -141,6 +152,18 @@ spec:
           value: "cn-north-1"
         - name: AWS_STS_ENDPOINT
           value: "https://sts.cn-north-1.amazonaws.com.cn"
+        - name: K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: K8S_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         - name: AWS_XRAY_ENDPOINT
           value: "https://xray.cn-north-1.amazonaws.com.cn"
         - name: AWS_CLOUDWATCH_ENDPOINT
@@ -151,19 +174,12 @@ spec:
           value: "/etc/aws/config"
         - name: AWS_USE_VPC_ENDPOINT_DISCOVERY
           value: "false"
-        - name: AWS_DISABLE_EC2_METADATA
-          value: "false"
         - name: AWS_ENDPOINT_URL_STS
           value: "https://sts.cn-north-1.amazonaws.com.cn"
         - name: AWS_ENDPOINT_URL_XRAY
           value: "https://xray.cn-north-1.amazonaws.com.cn"
         - name: AWS_ENDPOINT_URL_CLOUDWATCH
           value: "https://monitoring.cn-north-1.amazonaws.com.cn"
-        # Disable VPC endpoints if causing issues
-        - name: AWS_EC2_METADATA_DISABLED
-          value: "false"
-        - name: AWS_SDK_LOAD_CONFIG
-          value: "true"
         ports:
         - containerPort: 4317
           name: otlp-grpc
@@ -217,3 +233,32 @@ metadata:
   namespace: default
   annotations:
     eks.amazonaws.com/role-arn: ${OTEL_COLLECTOR_ROLE_ARN}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector
+subjects:
+- kind: ServiceAccount
+  name: otel-collector
+  namespace: default

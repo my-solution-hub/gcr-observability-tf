@@ -41,6 +41,12 @@ spec:
           value: "http://otel-collector:4317"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: "grpc"
+        - name: OTEL_LOGS_EXPORTER
+          value: "none"
+        - name: OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED
+          value: "true"
+        - name: OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE
+          value: "true"
         # - name: OTEL_METRICS_EXPORTER
         #   value: "otlp"
         # - name: OTEL_LOGS_EXPORTER

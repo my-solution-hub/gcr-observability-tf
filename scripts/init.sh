@@ -30,3 +30,4 @@ else
     echo "Region $REGION is not supported. Only China regions (cn-*) are supported."
     exit 1
 fi
+

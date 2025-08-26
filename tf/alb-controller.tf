@@ -231,7 +231,7 @@ resource "helm_release" "aws_load_balancer_controller" {
 
   set {
     name  = "image.repository"
-    value = "docker.m.daocloud.io/eks/aws-load-balancer-controller"
+    value = "public.ecr.aws/eks/aws-load-balancer-controller"
   }
 
   depends_on = [

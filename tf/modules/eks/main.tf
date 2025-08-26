@@ -73,7 +73,12 @@ module "eks" {
       before_compute = true
     }
     amazon-cloudwatch-observability = {
-      most_recent = true
+      most_recent                 = true
+      service_account_role_arn    = aws_iam_role.otel_collector_role.arn
+      preserve                    = false
+      resolve_conflicts_on_create = "OVERWRITE"
+      resolve_conflicts_on_update = "OVERWRITE"
+
     }
   }
 
@@ -132,6 +137,7 @@ resource "aws_iam_role_policy" "otel_collector_policy" {
           "cloudwatch:PutMetricData",
           "ec2:DescribeVolumes",
           "ec2:DescribeTags",
+          "ec2:DescribeInstances",
           "logs:PutLogEvents",
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
