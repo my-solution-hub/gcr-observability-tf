@@ -79,14 +79,20 @@ module "vpc" {
   azs             = var.availability_zones
   private_subnets = var.private_subnets
   public_subnets  = var.public_subnets
+  private_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
 
   enable_nat_gateway = true
   enable_vpn_gateway = false
 
   tags = {
-    Environment = var.environment
-    Region      = var.aws_region
-    Project     = var.project_name
+    Environment              = var.environment
+    Region                   = var.aws_region
+    Project                  = var.project_name
   }
 }
 
@@ -95,6 +101,7 @@ module "eks" {
   source = "./modules/eks"
 
   cluster_name = "${var.environment}-${var.aws_region}"
+  aws_region   = var.aws_region
   vpc_id       = module.vpc.vpc_id
   subnet_ids   = module.vpc.private_subnets
 

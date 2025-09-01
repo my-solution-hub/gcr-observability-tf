@@ -1,49 +1,41 @@
-// OpenTelemetry Web SDK Configuration
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-otlp-http';
-import { getWebAutoInstrumentations } from '@opentelemetry/auto-instrumentations-web';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
+// OpenTelemetry Web SDK Configuration using CDN
+// Load OpenTelemetry from CDN
+const script = document.createElement('script');
+script.src = 'https://unpkg.com/@opentelemetry/api@1.7.0/build/esm/index.js';
+script.type = 'module';
+document.head.appendChild(script);
 
-// Initialize the tracer provider
-const provider = new WebTracerProvider({
-  resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'hello-service-web',
-    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
-  }),
-});
+// Simple fetch instrumentation without full SDK
+function initializeSimpleTracing() {
+  // Basic tracing setup
+  const originalFetch = window.fetch;
+  
+  window.fetch = function(...args) {
+    const startTime = Date.now();
+    console.log('OpenTelemetry: Starting fetch request', args[0]);
+    
+    return originalFetch.apply(this, args)
+      .then(response => {
+        const duration = Date.now() - startTime;
+        console.log('OpenTelemetry: Fetch completed', {
+          url: args[0],
+          status: response.status,
+          duration: duration + 'ms'
+        });
+        return response;
+      })
+      .catch(error => {
+        const duration = Date.now() - startTime;
+        console.log('OpenTelemetry: Fetch failed', {
+          url: args[0],
+          error: error.message,
+          duration: duration + 'ms'
+        });
+        throw error;
+      });
+  };
+}
 
-// Configure OTLP exporter
-const exporter = new OTLPTraceExporter({
-  url: '/api/traces', // Proxy through backend
-});
-
-// Add batch span processor
-provider.addSpanProcessor(new BatchSpanProcessor(exporter));
-
-// Register the provider
-provider.register();
-
-// Register auto-instrumentations
-registerInstrumentations({
-  instrumentations: [
-    getWebAutoInstrumentations({
-      '@opentelemetry/instrumentation-document-load': {
-        enabled: true,
-      },
-      '@opentelemetry/instrumentation-user-interaction': {
-        enabled: true,
-      },
-      '@opentelemetry/instrumentation-fetch': {
-        enabled: true,
-      },
-      '@opentelemetry/instrumentation-xml-http-request': {
-        enabled: true,
-      },
-    }),
-  ],
-});
-
-console.log('OpenTelemetry Web SDK initialized');
+// Initialize simple tracing
+initializeSimpleTracing();
+console.log('OpenTelemetry Web SDK initialized with basic instrumentation');

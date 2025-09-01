@@ -47,6 +47,10 @@ spec:
           value: "true"
         - name: OTEL_INSTRUMENTATION_LOGBACK_MDC_ADD_BAGGAGE
           value: "true"
+        # - name: OTEL_PROPAGATORS
+        #   value: "xray"
+        # - name: OTEL_PYTHON_ID_GENERATOR
+        #   value: "xray"
         # - name: OTEL_METRICS_EXPORTER
         #   value: "otlp"
         # - name: OTEL_LOGS_EXPORTER

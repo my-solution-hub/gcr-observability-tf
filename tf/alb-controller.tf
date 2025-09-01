@@ -33,7 +33,7 @@ resource "aws_iam_role" "aws_load_balancer_controller" {
 }
 
 resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
-  policy_arn = "arn:aws-cn:iam::aws:policy/ElasticLoadBalancingFullAccess"
+  policy_arn = startswith(var.aws_region, "cn-") ? "arn:aws-cn:iam::aws:policy/ElasticLoadBalancingFullAccess" : "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
   role       = aws_iam_role.aws_load_balancer_controller.name
 }
 
@@ -48,18 +48,7 @@ resource "aws_iam_role_policy" "aws_load_balancer_controller_additional" {
         Effect = "Allow"
         Action = [
           "iam:CreateServiceLinkedRole",
-          "ec2:DescribeAccountAttributes",
-          "ec2:DescribeAddresses",
-          "ec2:DescribeAvailabilityZones",
-          "ec2:DescribeInternetGateways",
-          "ec2:DescribeVpcs",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeInstances",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DescribeTags",
-          "ec2:GetCoipPoolUsage",
-          "ec2:DescribeCoipPools",
+          "ec2:*",
           "elasticloadbalancing:DescribeLoadBalancers",
           "elasticloadbalancing:DescribeLoadBalancerAttributes",
           "elasticloadbalancing:DescribeListeners",
@@ -103,7 +92,7 @@ resource "aws_iam_role_policy" "aws_load_balancer_controller_additional" {
           "ec2:CreateSecurityGroup",
           "ec2:CreateTags"
         ]
-        Resource = "arn:aws-cn:ec2:*:*:security-group/*"
+        Resource = startswith(var.aws_region, "cn-") ? "arn:aws-cn:ec2:*:*:security-group/*" : "arn:aws:ec2:*:*:security-group/*"
         Condition = {
           StringEquals = {
             "ec2:CreateAction" = "CreateSecurityGroup"
@@ -143,9 +132,9 @@ resource "aws_iam_role_policy" "aws_load_balancer_controller_additional" {
           "elasticloadbalancing:RemoveTags"
         ]
         Resource = [
-          "arn:aws-cn:elasticloadbalancing:*:*:targetgroup/*/*",
-          "arn:aws-cn:elasticloadbalancing:*:*:loadbalancer/net/*/*",
-          "arn:aws-cn:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+          startswith(var.aws_region, "cn-") ? "arn:aws-cn:elasticloadbalancing:*:*:targetgroup/*/*" : "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+          startswith(var.aws_region, "cn-") ? "arn:aws-cn:elasticloadbalancing:*:*:loadbalancer/net/*/*" : "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+          startswith(var.aws_region, "cn-") ? "arn:aws-cn:elasticloadbalancing:*:*:loadbalancer/app/*/*" : "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
         ]
         Condition = {
           Null = {
@@ -179,14 +168,14 @@ resource "aws_iam_role_policy" "aws_load_balancer_controller_additional" {
           "elasticloadbalancing:RegisterTargets",
           "elasticloadbalancing:DeregisterTargets"
         ]
-        Resource = "arn:aws-cn:elasticloadbalancing:*:*:targetgroup/*/*"
+        Resource = startswith(var.aws_region, "cn-") ? "arn:aws-cn:elasticloadbalancing:*:*:targetgroup/*/*" : "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"
       },
       {
         Effect = "Allow"
         Action = [
           "ec2:CreateTags"
         ]
-        Resource = "arn:aws-cn:ec2:*:*:security-group/*"
+        Resource = startswith(var.aws_region, "cn-") ? "arn:aws-cn:ec2:*:*:security-group/*" : "arn:aws:ec2:*:*:security-group/*"
         Condition = {
           Null = {
             "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
@@ -202,7 +191,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-  version    = "1.4.4"
+  version    = "1.13.4"
 
   set {
     name  = "clusterName"

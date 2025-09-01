@@ -21,9 +21,9 @@
         <p>This frontend demonstrates OpenTelemetry web instrumentation with distributed tracing.</p>
         
         <div>
-            <button class="button" onclick="callHelloAPI()">Call Hello API</button>
-            <button class="button" onclick="callWorldAPI()">Call World API</button>
-            <button class="button" onclick="callHealthCheck()">Health Check</button>
+            <button class="button" id="hello-btn">Call Hello API</button>
+            <button class="button" id="world-btn">Call World API</button>
+            <button class="button" id="health-btn">Health Check</button>
         </div>
         
         <div id="result" class="result" style="display: none;">
@@ -32,95 +32,39 @@
         </div>
     </div>
 
+    <script src="/js/otel-bundle.js"></script>
     <script>
-        // Simple OpenTelemetry Web setup (using CDN)
-        let tracer;
-
-        // Initialize OpenTelemetry
-        async function initOpenTelemetry() {
-            try {
-                const { WebTracerProvider } = await import('https://unpkg.com/@opentelemetry/sdk-trace-web@1.17.0/build/esm/index.js');
-                const { Resource } = await import('https://unpkg.com/@opentelemetry/resources@1.17.0/build/esm/index.js');
-                const { BatchSpanProcessor } = await import('https://unpkg.com/@opentelemetry/sdk-trace-base@1.17.0/build/esm/index.js');
-                const { OTLPTraceExporter } = await import('https://unpkg.com/@opentelemetry/exporter-otlp-http@0.44.0/build/esm/index.js');
-
-                const provider = new WebTracerProvider({
-                    resource: new Resource({
-                        'service.name': 'hello-service-web',
-                        'service.version': '1.0.0',
-                    }),
-                });
-
-                const exporter = new OTLPTraceExporter({
-                    url: '/api/traces',
-                });
-
-                provider.addSpanProcessor(new BatchSpanProcessor(exporter));
-                provider.register();
-
-                tracer = provider.getTracer('hello-web-client');
-                console.log('OpenTelemetry Web SDK initialized');
-            } catch (error) {
-                console.warn('OpenTelemetry initialization failed:', error);
-                // Create a dummy tracer for fallback
-                tracer = {
-                    startSpan: (name) => ({
-                        setStatus: () => {},
-                        end: () => {}
-                    })
-                };
-            }
-        }
-
-        // API call functions
+        // API call functions - automatically traced by OpenTelemetry auto-instrumentation
         async function callHelloAPI() {
-            const span = tracer.startSpan('hello-api-call');
             showLoading();
-            
             try {
                 const response = await fetch('/api/hello');
                 const data = await response.json();
                 showResult(data);
-                span.setStatus({ code: 1 }); // OK
             } catch (error) {
                 showError(error.message);
-                span.setStatus({ code: 2, message: error.message }); // ERROR
-            } finally {
-                span.end();
             }
         }
 
         async function callWorldAPI() {
-            const span = tracer.startSpan('world-api-call');
             showLoading();
-            
             try {
                 const response = await fetch('/api/world');
                 const data = await response.json();
                 showResult(data);
-                span.setStatus({ code: 1 }); // OK
             } catch (error) {
                 showError(error.message);
-                span.setStatus({ code: 2, message: error.message }); // ERROR
-            } finally {
-                span.end();
             }
         }
 
         async function callHealthCheck() {
-            const span = tracer.startSpan('health-check');
             showLoading();
-            
             try {
                 const response = await fetch('/health');
                 const data = await response.text();
                 showResult({ status: 'healthy', message: data });
-                span.setStatus({ code: 1 }); // OK
             } catch (error) {
                 showError(error.message);
-                span.setStatus({ code: 2, message: error.message }); // ERROR
-            } finally {
-                span.end();
             }
         }
 
@@ -149,7 +93,12 @@
         }
 
         // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initOpenTelemetry);
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add event listeners for buttons
+            document.getElementById('hello-btn').addEventListener('click', callHelloAPI);
+            document.getElementById('world-btn').addEventListener('click', callWorldAPI);
+            document.getElementById('health-btn').addEventListener('click', callHealthCheck);
+        });
     </script>
 </body>
 </html>

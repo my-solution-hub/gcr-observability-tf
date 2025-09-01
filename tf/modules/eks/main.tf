@@ -96,7 +96,7 @@ module "eks" {
       
       # Add CloudWatch agent permissions
       iam_role_additional_policies = {
-        CloudWatchAgentServerPolicy = "arn:aws-cn:iam::aws:policy/CloudWatchAgentServerPolicy"
+        CloudWatchAgentServerPolicy = startswith(var.aws_region, "cn-") ? "arn:aws-cn:iam::aws:policy/CloudWatchAgentServerPolicy" : "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
       }
     }
   }

@@ -1,15 +1,17 @@
 package com.example.hello.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
-import java.time.Duration;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,19 +21,41 @@ public class ApiController {
 
     private static final Logger logger = LoggerFactory.getLogger(ApiController.class);
 
-    @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    private JedisPool jedisPool;
+
+    @Value("${spring.data.redis.host:localhost}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port:6379}")
+    private int redisPort;
 
     @Value("${world.service.url:http://localhost:5000}")
     private String worldServiceUrl;
+
+    @PostConstruct
+    public void initRedis() {
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(10);
+        poolConfig.setMaxIdle(5);
+        poolConfig.setMinIdle(1);
+        jedisPool = new JedisPool(poolConfig, redisHost, redisPort, 2000, null, true);
+        logger.info("Jedis pool initialized for {}:{}", redisHost, redisPort);
+    }
+
+    @PreDestroy
+    public void destroyRedis() {
+        if (jedisPool != null) {
+            jedisPool.close();
+        }
+    }
 
     @GetMapping("/data")
     public String getData(@RequestParam(value = "cache_key", defaultValue = "world_data") String cacheKey) {
         logger.info("API data request received with cache_key: {}", cacheKey);
         
-        try {
+        try (Jedis jedis = jedisPool.getResource()) {
             // Check Redis cache first
-            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+            String cachedData = jedis.get(cacheKey);
             
             if (cachedData != null) {
                 logger.info("Cache hit - returning cached data for key: {}", cacheKey);
@@ -43,8 +67,8 @@ public class ApiController {
             RestTemplate restTemplate = new RestTemplate();
             String worldData = restTemplate.getForObject(worldServiceUrl + "/api/data", String.class);
             
-            // Cache the result for 5 minutes
-            redisTemplate.opsForValue().set(cacheKey, worldData, Duration.ofMinutes(5));
+            // Cache the result for 5 minutes (300 seconds)
+            jedis.setex(cacheKey, 300, worldData);
             logger.info("Data cached successfully for 5 minutes with key: {}", cacheKey);
             
             return "From World Service (cached): " + worldData;
@@ -68,9 +92,9 @@ public class ApiController {
     @GetMapping("/world")
     public Map<String, Object> apiWorld() {
         logger.info("API World endpoint called - proxying to world service");
-        try {
+        try (Jedis jedis = jedisPool.getResource()) {
             String cacheKey = "world_data";
-            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+            String cachedData = jedis.get(cacheKey);
             
             if (cachedData != null) {
                 logger.info("Cache hit for world data");
@@ -88,7 +112,7 @@ public class ApiController {
             
             if (worldResponse.getStatusCode().is2xxSuccessful()) {
                 Map<String, Object> worldData = worldResponse.getBody();
-                redisTemplate.opsForValue().set(cacheKey, worldData.toString(), Duration.ofMinutes(5));
+                jedis.setex(cacheKey, 300, worldData.toString());
                 
                 Map<String, Object> response = new HashMap<>();
                 response.put("data", worldData);

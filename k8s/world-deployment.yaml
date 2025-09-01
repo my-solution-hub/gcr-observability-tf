@@ -34,6 +34,14 @@ spec:
         - name: DB_PASSWORD
           value: "changeme123!"
         
+        # Redis configuration
+        - name: REDIS_HOST
+          value: "${REDIS_ENDPOINT}"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_SSL
+          value: "true"
+        
         # OpenTelemetry configuration
         - name: OTEL_SERVICE_NAME
           value: "world-service"

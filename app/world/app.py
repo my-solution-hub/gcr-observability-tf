@@ -1,5 +1,7 @@
 from flask import Flask, jsonify
 import pymysql
+import redis
+import json
 import os
 import logging
 import sys
@@ -9,6 +11,14 @@ logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler(sys.stdo
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Redis connection
+redis_client = redis.Redis(
+    host=os.getenv('REDIS_HOST', 'localhost'),
+    port=int(os.getenv('REDIS_PORT', '6379')),
+    decode_responses=True,
+    ssl=True if os.getenv('REDIS_SSL', 'true').lower() == 'true' else False
+)
 
 def get_db_connection():
     return pymysql.connect(
@@ -55,7 +65,20 @@ def home():
 
 @app.route('/api/data')
 def get_data():
+    cache_key = "world_data"
+    
     try:
+        # Check Redis cache first
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            logger.info("Cache hit - returning cached data")
+            data = json.loads(cached_data)
+            data['source'] = 'redis_cache'
+            return jsonify(data)
+        
+        logger.info("Cache miss - fetching from database")
+        
+        # Get data from database
         connection = get_db_connection()
         with connection.cursor() as cursor:
             cursor.execute("SELECT message, timestamp FROM world_data ORDER BY RAND() LIMIT 1")
@@ -68,10 +91,15 @@ def get_data():
             'source': 'mysql_database',
             'service': 'flask-world'
         }
-        logger.info(f"Returning data: {data['message']}")
+        
+        # Cache the result for 5 minutes (300 seconds)
+        redis_client.setex(cache_key, 300, json.dumps(data))
+        logger.info(f"Data cached for 5 minutes: {data['message']}")
+        
         return jsonify(data)
+        
     except Exception as e:
-        logger.error(f"Database error: {e}")
+        logger.error(f"Error: {e}")
         return jsonify({'error': str(e), 'service': 'flask-world'}), 500
 
 @app.route('/health')
@@ -79,11 +107,15 @@ def health():
     try:
         connection = get_db_connection()
         connection.close()
+        
+        # Test Redis connection
+        redis_client.ping()
+        
         logger.info("Health check OK")
         return 'OK'
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return f'Database error: {str(e)}', 500
+        return f'Error: {str(e)}', 500
 
 if __name__ == '__main__':
     import time

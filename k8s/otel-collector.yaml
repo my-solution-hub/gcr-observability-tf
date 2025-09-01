@@ -6,25 +6,25 @@ metadata:
 data:
   config: |
     [default]
-    region = cn-north-1
+    region = ${AWS_REGION}
     sts_regional_endpoints = regional
     use_dualstack_endpoint = false
     
     [profile default]
-    region = cn-north-1
+    region = ${AWS_REGION}
     sts_regional_endpoints = regional
     
     [services sts]
-    endpoint_url = https://sts.cn-north-1.amazonaws.com.cn
+    endpoint_url = ${AWS_STS_ENDPOINT}
     
     [services xray]
-    endpoint_url = https://xray.cn-north-1.amazonaws.com.cn
+    endpoint_url = ${AWS_XRAY_ENDPOINT}
     
     [services monitoring]  
-    endpoint_url = https://monitoring.cn-north-1.amazonaws.com.cn
+    endpoint_url = ${AWS_CLOUDWATCH_ENDPOINT}
     
     [services logs]
-    endpoint_url = https://logs.cn-north-1.amazonaws.com.cn
+    endpoint_url = ${AWS_LOGS_ENDPOINT}
 
 ---
 apiVersion: v1
@@ -87,15 +87,15 @@ data:
 
     exporters:
       awsemf:
-        region: cn-north-1
+        region: ${AWS_REGION}
         namespace: "ObservabilityDemo"
         dimension_rollup_option: "NoDimensionRollup"
       # debug:
       #   verbosity: detailed
       awsxray:
-        region: cn-north-1
+        region: ${AWS_REGION}
         no_verify_ssl: false
-        endpoint: https://xray.cn-north-1.amazonaws.com.cn
+        endpoint: ${AWS_XRAY_ENDPOINT}
 
     service:
       # telemetry:
@@ -140,18 +140,18 @@ spec:
         fsGroup: 65534
       containers:
       - name: otel-collector
-        image: docker.1ms.run/otel/opentelemetry-collector-contrib:0.132.0
+        image: ${OTEL_COLLECTOR_IMAGE}
         args:
         - --config=/etc/otel-collector-config/config.yaml
         env:
         - name: AWS_STS_REGIONAL_ENDPOINTS
           value: "regional"
         - name: AWS_REGION
-          value: "cn-north-1"
+          value: "${AWS_REGION}"
         - name: AWS_DEFAULT_REGION
-          value: "cn-north-1"
+          value: "${AWS_REGION}"
         - name: AWS_STS_ENDPOINT
-          value: "https://sts.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_STS_ENDPOINT}"
         - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
@@ -165,21 +165,21 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: AWS_XRAY_ENDPOINT
-          value: "https://xray.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_XRAY_ENDPOINT}"
         - name: AWS_CLOUDWATCH_ENDPOINT
-          value: "https://monitoring.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_CLOUDWATCH_ENDPOINT}"
         - name: AWS_LOGS_ENDPOINT
-          value: "https://logs.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_LOGS_ENDPOINT}"
         - name: AWS_CONFIG_FILE
           value: "/etc/aws/config"
         - name: AWS_USE_VPC_ENDPOINT_DISCOVERY
           value: "false"
         - name: AWS_ENDPOINT_URL_STS
-          value: "https://sts.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_STS_ENDPOINT}"
         - name: AWS_ENDPOINT_URL_XRAY
-          value: "https://xray.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_XRAY_ENDPOINT}"
         - name: AWS_ENDPOINT_URL_CLOUDWATCH
-          value: "https://monitoring.cn-north-1.amazonaws.com.cn"
+          value: "${AWS_CLOUDWATCH_ENDPOINT}"
         ports:
         - containerPort: 4317
           name: otlp-grpc

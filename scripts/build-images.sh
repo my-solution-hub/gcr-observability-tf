@@ -1,20 +1,27 @@
 #!/bin/bash
 
-# Usage: ./scripts/build-images.sh [tag] [push]
+# Usage: ./scripts/build-images.sh [tag] [push] [profile]
 # Example: ./scripts/build-images.sh latest
 # Example: ./scripts/build-images.sh latest push
+# Example: ./scripts/build-images.sh latest push cn
 
 TAG=${1:-latest}
 PUSH=${2}
+PROFILE=${3}
 
 echo "Building Docker images with tag: $TAG"
 
 # Get ECR repository URLs from Terraform outputs
 cd tf
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-export AWS_PROFILE=cn
+if [ -n "$PROFILE" ]; then
+    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+    export AWS_PROFILE=$PROFILE
+    echo "Using AWS profile: $PROFILE"
+fi
 HELLO_ECR_URL=$(terraform output -raw hello_service_ecr_repository_url 2>/dev/null)
 WORLD_ECR_URL=$(terraform output -raw world_service_ecr_repository_url 2>/dev/null)
+echo "Hello Service ECR URL: $HELLO_ECR_URL"
+echo "World Service ECR URL: $WORLD_ECR_URL"
 cd ..
 
 # Build Java Spring Boot hello app
