@@ -79,9 +79,9 @@ module "vpc" {
   azs             = var.availability_zones
   private_subnets = var.private_subnets
   public_subnets  = var.public_subnets
-  private_subnet_tags = {
-    "kubernetes.io/role/elb" = "1"
-  }
+  # private_subnet_tags = {
+  #   "kubernetes.io/role/elb" = "1"
+  # }
   public_subnet_tags = {
     "kubernetes.io/role/elb" = "1"
   }

@@ -30,17 +30,31 @@ spec:
         - name: WORLD_SERVICE_URL
           value: "http://world-service:5000"
         
+        # Frontend OpenTelemetry resource attributes
+        - name: SERVICE_VERSION
+          value: "1.0.0"
+        - name: DEPLOYMENT_ENVIRONMENT
+          value: "dev"
+        - name: K8S_CLUSTER_NAME
+          value: "${CLUSTER_NAME}"
+        - name: K8S_NAMESPACE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        
         # OpenTelemetry configuration
         - name: OTEL_SERVICE_NAME
           value: "hello-service"
         - name: OTEL_RESOURCE_ATTRIBUTES
           value: "service.name=hello-service,service.version=1.0.0"
-        # - name: OTEL_EXPORTER_OTLP_ENDPOINT
-        #   value: "http://cloudwatch-agent.amazon-cloudwatch:4315"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://otel-collector:4317"
         - name: OTEL_EXPORTER_OTLP_PROTOCOL
           value: "grpc"
+        - name: OTEL_PROPAGATORS
+          value: "xray"
+        - name: OTEL_TRACES_SAMPLER
+          value: "xray"
         - name: OTEL_LOGS_EXPORTER
           value: "none"
         - name: OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED

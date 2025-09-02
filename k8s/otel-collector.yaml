@@ -62,9 +62,9 @@ data:
             action: upsert
             from_attribute: service.name
       resourcedetection/eks:
-        detectors: [env, eks]
+        detectors: [env, eks, ec2]
         timeout: 15s
-        override: true
+        override: false
         eks:
           resource_attributes:
             k8s.cluster.name:
@@ -82,8 +82,9 @@ data:
           - name: http.route
         metrics_expiration: 5m
         exemplars:
-          enabled: true
+          enabled: false
         metrics_flush_interval: 30s
+        exclude_dimensions: ["span.name"]
 
     exporters:
       awsemf:
@@ -104,12 +105,22 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, resourcedetection/eks]
-          exporters: [awsxray, spanmetrics]
+          processors: [memory_limiter, resourcedetection/eks, batch]
+          exporters: [awsxray]
         
         metrics:
-          receivers: [otlp, spanmetrics]
+          receivers: [otlp]
           processors: [memory_limiter, resource, filter, batch]
+          exporters: [awsemf]
+          
+        traces/spanmetrics:
+          receivers: [otlp]
+          processors: [memory_limiter, resourcedetection/eks]
+          exporters: [spanmetrics]
+          
+        metrics/spanmetrics:
+          receivers: [spanmetrics]
+          processors: [memory_limiter, resource, batch]
           exporters: [awsemf]
 
       extensions: []

@@ -6,5 +6,14 @@ module.exports = {
     filename: 'otel-bundle.js',
     path: path.resolve(__dirname, 'src/main/resources/static/js'),
   },
-  mode: 'production'
+  mode: 'production',
+  resolve: {
+    fallback: {
+      "buffer": false,
+      "crypto": false,
+      "stream": false,
+      "util": false,
+      "url": false
+    }
+  }
 };

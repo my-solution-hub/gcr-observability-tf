@@ -1,6 +1,8 @@
-# Frontend build stage
+# Frontend build stage with China npm mirror
 FROM node:18-alpine AS frontend-build
 WORKDIR /app
+# Use Taobao npm registry for China
+RUN npm config set registry https://registry.npmmirror.com
 COPY package.json webpack.config.js ./
 COPY src/main/resources/static/js/otel-init.js ./src/main/resources/static/js/
 RUN npm install && npm run build
