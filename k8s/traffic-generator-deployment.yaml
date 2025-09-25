@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  labels:
+    app: traffic-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-generator
+  template:
+    metadata:
+      labels:
+        app: traffic-generator
+    spec:
+      containers:
+      - name: traffic-generator
+        image: ${TRAFFIC_ECR_URL}:latest
+        env:
+        - name: HELLO_SERVICE_URL
+          value: "http://hello-service:8080"
+        - name: WORLD_SERVICE_URL
+          value: "http://world-service:5000"
+        - name: INTERVAL_MIN
+          value: "5"
+        - name: INTERVAL_MAX
+          value: "15"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector:4318"
+        - name: OTEL_SERVICE_NAME
+          value: "traffic-generator"
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=traffic-generator,service.version=1.0.0"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

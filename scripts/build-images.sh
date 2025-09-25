@@ -20,8 +20,10 @@ if [ -n "$PROFILE" ]; then
 fi
 HELLO_ECR_URL=$(terraform output -raw hello_service_ecr_repository_url 2>/dev/null)
 WORLD_ECR_URL=$(terraform output -raw world_service_ecr_repository_url 2>/dev/null)
+TRAFFIC_ECR_URL=$(terraform output -raw traffic_generator_ecr_repository_url 2>/dev/null)
 echo "Hello Service ECR URL: $HELLO_ECR_URL"
 echo "World Service ECR URL: $WORLD_ECR_URL"
+echo "Traffic Generator ECR URL: $TRAFFIC_ECR_URL"
 cd ..
 
 # Build Java Spring Boot hello app
@@ -43,11 +45,20 @@ if [ -n "$WORLD_ECR_URL" ]; then
 fi
 cd ../..
 
+# Build traffic generator
+echo "Building traffic-generator..."
+cd app/traffic-generator
+docker build --platform linux/amd64 -t traffic-generator:$TAG .
+if [ -n "$TRAFFIC_ECR_URL" ]; then
+    docker tag traffic-generator:$TAG $TRAFFIC_ECR_URL:$TAG
+fi
+cd ../..
+
 echo "Docker images built successfully:"
-docker images | grep -E "(hello-service|world-service)"
+docker images | grep -E "(hello-service|world-service|traffic-generator)"
 
 # Push to ECR if requested
-if [ "$PUSH" = "push" ] && [ -n "$HELLO_ECR_URL" ] && [ -n "$WORLD_ECR_URL" ]; then
+if [ "$PUSH" = "push" ]; then
     echo "Pushing images to ECR..."
     
     # Get AWS region and account ID
@@ -56,9 +67,16 @@ if [ "$PUSH" = "push" ] && [ -n "$HELLO_ECR_URL" ] && [ -n "$WORLD_ECR_URL" ]; t
     # Login to ECR
     aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $HELLO_ECR_URL
     
-    # Push images
-    docker push $HELLO_ECR_URL:$TAG
-    docker push $WORLD_ECR_URL:$TAG
+    # Push images that have ECR URLs
+    if [ -n "$HELLO_ECR_URL" ]; then
+        docker push $HELLO_ECR_URL:$TAG
+    fi
+    if [ -n "$WORLD_ECR_URL" ]; then
+        docker push $WORLD_ECR_URL:$TAG
+    fi
+    if [ -n "$TRAFFIC_ECR_URL" ]; then
+        docker push $TRAFFIC_ECR_URL:$TAG
+    fi
     
     echo "Images pushed to ECR successfully!"
 fi

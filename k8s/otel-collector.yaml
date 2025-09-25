@@ -80,6 +80,8 @@ data:
             default: GET
           - name: http.status_code
           - name: http.route
+          - name: bodysize
+            default: "0"
         metrics_expiration: 5m
         exemplars:
           enabled: false

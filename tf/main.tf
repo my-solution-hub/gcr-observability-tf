@@ -270,3 +270,18 @@ resource "aws_ecr_repository" "world_service" {
     Service     = "world"
   }
 }
+
+resource "aws_ecr_repository" "traffic_generator" {
+  name                 = "${var.project_name}-traffic-generator"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+    Service     = "traffic-generator"
+  }
+}

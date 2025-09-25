@@ -70,3 +70,8 @@ output "world_service_ecr_repository_url" {
   description = "ECR repository URL for world service"
   value       = aws_ecr_repository.world_service.repository_url
 }
+
+output "traffic_generator_ecr_repository_url" {
+  description = "ECR repository URL for traffic generator"
+  value       = aws_ecr_repository.traffic_generator.repository_url
+}

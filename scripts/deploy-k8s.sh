@@ -18,6 +18,7 @@ echo "Deploying Kubernetes manifests..."
 cd tf
 export HELLO_ECR_URL=$(terraform output -raw hello_service_ecr_repository_url)
 export WORLD_ECR_URL=$(terraform output -raw world_service_ecr_repository_url)
+export TRAFFIC_ECR_URL=$(terraform output -raw traffic_generator_ecr_repository_url)
 export REDIS_ENDPOINT=$(terraform output -raw redis_primary_endpoint)
 export RDS_ENDPOINT=$(terraform output -raw rds_cluster_endpoint)
 export OTEL_COLLECTOR_ROLE_ARN=$(terraform output -raw otel_collector_role_arn)
@@ -45,6 +46,7 @@ cd ..
 echo "Using values:"
 echo "  Hello ECR: $HELLO_ECR_URL"
 echo "  World ECR: $WORLD_ECR_URL"
+echo "  Traffic ECR: $TRAFFIC_ECR_URL"
 echo "  Redis: $REDIS_ENDPOINT"
 echo "  RDS: $RDS_ENDPOINT"
 echo "  OTEL Role: $OTEL_COLLECTOR_ROLE_ARN"
@@ -63,6 +65,9 @@ envsubst < k8s/world-deployment.yaml | kubectl apply -f -
 
 echo "Applying Hello Service..."
 envsubst < k8s/hello-deployment.yaml | kubectl apply -f -
+
+echo "Applying Traffic Generator..."
+envsubst < k8s/traffic-generator-deployment.yaml | kubectl apply -f -
 
 echo "Applying Ingress..."
 envsubst < k8s/ingress.yaml | kubectl apply -f -

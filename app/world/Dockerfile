@@ -11,4 +11,4 @@ RUN opentelemetry-bootstrap -a install
 
 EXPOSE 5000
 
-CMD ["opentelemetry-instrument", "python", "app.py"]
+CMD ["opentelemetry-instrument", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
